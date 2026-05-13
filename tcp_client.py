@@ -1,29 +1,39 @@
 import socket
-import time
+import threading
 
 HOST = "127.0.0.1"
 PORT = 5000
 BUFFER_SIZE = 1024
-PING_COUNT = 5
 
 
-def send_ping(sock, number):
-    print(f"[TCP CLIENT] Sending PING #{number}")
-    sock.sendall(b"PING")
+def handle_client(conn, addr):
+    print(f"[THREAD] Client connected: {addr}")
 
-    data = sock.recv(BUFFER_SIZE)
+    with conn:
+        while True:
+            data = conn.recv(BUFFER_SIZE)
 
-    print(f"[TCP CLIENT] Received: {data.decode()}")
+            if not data:
+                break
 
+            if data.decode() == "PING":
+                conn.sendall(b"PONG")
 
-def main():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
-        client.connect((HOST, PORT))
-
-        for i in range(1, PING_COUNT + 1):
-            send_ping(client, i)
-            time.sleep(1)
+    print(f"[THREAD] Client disconnected: {addr}")
 
 
-if __name__ == "__main__":
-    main()
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+    server.bind((HOST, PORT))
+    server.listen()
+
+    print("[SERVER] Multi-threaded server running")
+
+    while True:
+        conn, addr = server.accept()
+
+        thread = threading.Thread(
+            target=handle_client,
+            args=(conn, addr)
+        )
+
+        thread.start()
